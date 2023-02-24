@@ -8,29 +8,29 @@ This repo seeks to find an efficient model by comparing the performance and spee
 
 ## Models
 
-**Vanilla Transformer**
+**Vanilla Transformer**<br>
 This is the most basic Transformer introduced in the "Attention is All You Need" paper.
 
 <br>
 
-**BERT**
+**BERT**<br>
 BERT is multiple Transformer blocks nested pretrained Encoder model.
 
 <br>
 
-**ALBERT**
+**ALBERT**<br>
 A Lite BERT
 <br>
 
-**Distil BERT**
+**Distil BERT**<br>
 Distilled BERT
 <br>
 
-**Mobile BERT**
+**Mobile BERT**<br>
 
 <br>
 
-**Reformer**
+**Reformer**<br>
 
 <br>
 
