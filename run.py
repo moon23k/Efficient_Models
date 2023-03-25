@@ -25,8 +25,17 @@ def load_model(config):
 
 class Config(object):
     def __init__(self, args):
+
+        mname_dict = {'bert': 'bert-base-uncased',
+                      'albert': "albert-base-v2",
+                      'distil_bert': "distilbert-base-uncased", 
+                      'mobile_bert': "google/mobilebert-uncased",
+                      'longformer': "allenai/longformer-base-4096",
+                      'bigbird': "google/bigbird-roberta-base"}
+
         self.mode = args.mode
         self.model = args.model
+        self.m_name = mname_dict[self.model]
 
         self.n_epochs = 1
         self.batch_size = 32
@@ -77,7 +86,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     assert args.mode.lower() in ['train', 'test']
-    assert args.mode.lower() in ['transformer', 'bert', 'albert', 'distil', 'mobile'
-                         		 'transformer_xl', 'reformer', 'longformer', 'bigbird']
+    assert args.mode.lower() in ['bert', 'albert', 'distil_bert', 'mobile_bert', 'longformer', 'bigbird']
 
     main(args)

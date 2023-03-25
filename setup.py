@@ -26,8 +26,7 @@ def save_data(data_obj):
 
 def main():
 	orig = load_dataset('imdb')
-	orig = orig['train'] + orig['test']
-	processed = preprocess_data
+	processed = preprocess_data(orig['train']) + preprocess_data(orig['train'])
 	save_data(processed)
 
 
