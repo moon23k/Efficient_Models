@@ -1,7 +1,7 @@
 import json, torch
+from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
-from transformer import AutoTokenizer
 
 
 
@@ -23,32 +23,32 @@ class Dataset(torch.utils.data.Dataset):
         return self.data[idx]['text'], self.data[idx]['label']
 
 
+class Collator:
+    def __init__(self, tokenizer):
+        self.tokenizer = tokenizer
+        self.max_len = tokenizer.model_max_length
 
-
-def load_dataloader(config, tokenzier, split):
-    pad_id = config.pad_id
-    max_len = config.max_len
-
-    def collate_fn(batch):
+    def __call__(self, batch):
         text_batch, label_batch = [], []
 
         for text, label in batch:
             text_batch.append(text) 
             label_batch.append(label)
 
-        text_encodings = tokenzier(text_batch, 
-        						   max_length=max_len,
-        						   padding='max_length', 
-        						   truncation=True,
- 								   return_tensors='pt')
+        text_encodings = self.tokenzier(text_batch, 
+                                        max_length=self.max_len,
+                                        padding='max_length', 
+                                        truncation=True,
+                                        return_tensors='pt')
 
         return {'input_ids': text_encodings.input_ids, 
                 'attention_mask': text_encodings.attention_mask,
-                'labels': torch.Tensor(labels_batch)}
+                'labels': torch.Tensor(label_batch)}
 
-    return DataLoader(Dataset(config.task, split), 
+
+def load_dataloader(config, tokenizer, split):
+    return DataLoader(Dataset(split), 
                       batch_size=config.batch_size, 
-                      shuffle=True,
-                      collate_fn=collate_fn,
-                      num_workers=2,
-                      pin_memory=True)		
+                      shuffle=True if config.mode =='train' else False,
+                      collate_fn=Collator(tokenizer),
+                      num_workers=2, pin_memory=True)       

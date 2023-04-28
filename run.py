@@ -1,26 +1,10 @@
-import os, yaml, argparse, torch
-
-from module.data import load_dataloader
-from module.train import Trainer
+import os, argparse, torch
 from module.test import Tester
+from module.train import Trainer
+from module.model import load_model
+from module.data import load_dataloader
+from transformers import set_seed, AutoTokenizer
 
-from transformers import (set_seed, 
-						  AutoModel,
-						  AutoTokenizer)
-
-from pynvml import (nvmlInit, 
-                    nvmlDeviceGetHandleByIndex, 
-                    nvmlDeviceGetMemoryInfo)
-
-
-
-def load_model(config):
-	model = AutoModel.from_pretrained(config.m_name)
-
-	if config.m_type == 'transformer':
-		model = model.encoder
-
-	return model.to(config.device)
 
 
 class Config(object):
@@ -34,13 +18,18 @@ class Config(object):
                       'bigbird': "google/bigbird-roberta-base"}
 
         self.mode = args.mode
-        self.model = args.model
-        self.m_name = mname_dict[self.model]
+        self.model_type = args.model
+        self.mname = mname_dict[self.model_type]
+        self.ckpt = f"ckpt/{self.model_type}.pt"
 
-        self.n_epochs = 1
+        self.n_epochs = 10
         self.batch_size = 32
-        self.learning_rate = 1e-4
+        self.learning_rate = 5e-5
         self.gradient_accumulation_steps = 4
+
+        self.early_stop = True
+        self.patience = 3
+
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
         
@@ -49,32 +38,25 @@ class Config(object):
             print(f"* {attribute}: {value}")
 
 
-def print_memory():
-    nvmlInit()
-    handle = nvmlDeviceGetHandleByIndex(0)
-    info = nvmlDeviceGetMemoryInfo(handle)
-    print(f"GPU memory occupied: {info.used//1024**2} MB.")
-
-
 
 
 def main(args):
     set_seed(42)
     config = Config(args)
     model = load_model(config)
-    tokenizer = load_tokenizer(config)
+    tokenizer = AutoTokenizer.from_pretrained(config.mname)
 
 
     if args.mode == 'train':
-        train_datalaoder = load_dataloader(config, tokenizer, 'train')
-        valid_datalaoder = load_dataloader(config, tokenizer, 'valid')
-        trainer = Trainer(config, model, tokenizer, train_dataloader, valid_datalaoder) 
+        train_dataloader = load_dataloader(config, tokenizer, 'train')
+        valid_dataloader = load_dataloader(config, tokenizer, 'valid')
+        trainer = Trainer(config, model, train_dataloader, valid_dataloader) 
         trainer.train()
 
 
     elif args.mode == 'test':
         test_dataloader = load_dataloader(config, tokenizer, 'test')
-        tester = Tester(config, model, tokenizer, test_dataloader)
+        tester = Tester(config, model, test_dataloader)
         tester.test()
 
 
@@ -85,7 +67,8 @@ if __name__ == '__main__':
     parser.add_argument('-model', required=True)
 
     args = parser.parse_args()
-    assert args.mode.lower() in ['train', 'test']
-    assert args.mode.lower() in ['bert', 'albert', 'distil_bert', 'mobile_bert', 'longformer', 'bigbird']
+    assert args.mode.lower() in ['train', 'test', 'inference']
+    assert args.model.lower() in ['bert', 'albert', 'distil_bert', 
+                                  'mobile_bert', 'longformer', 'bigbird']
 
     main(args)

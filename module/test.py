@@ -38,5 +38,5 @@ class Tester:
         acc_score /= data_volumn
 
         print('Test Results')
-        print(f"  >> BLEU Score: {acc_score:.2f}")
+        print(f"  >> ACC Score: {acc_score:.2f}")
         print(f"  >> Spent Time: {self.measure_time(start_time, time.time())}")

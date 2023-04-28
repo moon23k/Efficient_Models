@@ -1,4 +1,4 @@
-import time, math, json, torch
+import time, json, torch
 import torch.nn as nn
 import torch.amp as amp
 import torch.optim as optim
@@ -10,24 +10,24 @@ class Trainer:
         super(Trainer, self).__init__()
         
         self.model = model
-        self.lr = config.lr
         self.clip = config.clip
         self.device = config.device
         self.n_epochs = config.n_epochs
-        self.model_type = config.model_type
 
-        self.device_type = config.device_type
         self.scaler = torch.cuda.amp.GradScaler()
         self.iters_to_accumulate = config.iters_to_accumulate        
 
         self.train_dataloader = train_dataloader
         self.valid_dataloader = valid_dataloader
 
-        self.optimizer = optim.AdamW(params=self.model.parameters(), lr=self.lr)
+        self.optimizer = optim.AdamW(params=self.model.parameters(), lr=config.lr)
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min')
+
+        self.early_stop = config.early_stop
+        self.patience = config.patience
                 
         self.ckpt = config.ckpt
-        self.record_path = f"ckpt/{config.task}_{config.model_type}.json"
+        self.record_path = f"ckpt/{config.model_type}_record.json"
         self.record_keys = ['epoch', 'train_loss', 'train_ppl','valid_loss', 
                             'valid_ppl', 'learning_rate', 'train_time']
         
@@ -38,10 +38,8 @@ class Trainer:
               Time: {record_dict['train_time']}""".replace(' ' * 14, ''))
         
         print(f"""  >> Train Loss: {record_dict['train_loss']:.3f} | \
-              Train PPL: {record_dict['train_ppl']:.2f}""".replace(' ' * 14, ''))
+              Valid Loss: {record_dict['valid_loss']:.3f}""".replace(' ' * 14, ''))
 
-        print(f"""  >> Valid Loss: {record_dict['valid_loss']:.3f} | \
-              Valid PPL: {record_dict['valid_ppl']:.2f}\n""".replace(' ' * 14, ''))
 
 
 
@@ -59,7 +57,7 @@ class Trainer:
         for epoch in range(1, self.n_epochs + 1):
             start_time = time.time()
 
-            record_vals = [epoch, *self.train_epoch(), *self.valid_epoch(), 
+            record_vals = [epoch, self.train_epoch(), self.valid_epoch(), 
                            self.optimizer.param_groups[0]['lr'],
                            self.measure_time(start_time, time.time())]
             record_dict = {k: v for k, v in zip(self.record_keys, record_vals)}
@@ -77,6 +75,19 @@ class Trainer:
                             'model_state_dict': self.model.state_dict(),
                             'optimizer_state_dict': self.optimizer.state_dict()},
                             self.ckpt)
+
+            #Early Stopping Process
+            if self.early_stop:
+                if prev_loss > val_loss:
+                    patience = self.patience
+            
+                else:
+                    patience -= 1
+                    if not patience:
+                        print('--- Training Ealry Stopped ---\n')
+                        break
+
+                prev_loss = val_loss
             
         #save train_records
         with open(self.record_path, 'w') as fp:
@@ -91,27 +102,20 @@ class Trainer:
         tot_len = len(self.train_dataloader)
 
         for idx, batch in enumerate(self.train_dataloader):
-            
-            input_ids = batch['input_ids'].to(self.device)
-            attention_mask = batch['attention_mask'].to(self.device)
-            labels = batch['labels'].to(self.device)
 
             with torch.autocast(device_type=self.device_type, dtype=torch.float16):
-                loss = self.model(input_ids=input_ids, 
-                                  attention_mask=attention_mask,
-                                  labels=labels).loss
+                loss = self.model(input_ids=batch['input_ids'].to(self.device), 
+                                  attention_mask=batch['attention_mask'].to(self.device),
+                                  labels=batch['labels'].to(self.device)).loss
 
                 loss = loss / self.iters_to_accumulate
             
             #Backward Loss
             self.scaler.scale(loss).backward()        
             
-            if (idx + 1) % self.iters_to_accumulate == 0:
+            if (idx % self.iters_to_accumulate == 0) or (idx == tot_len):
                 #Gradient Clipping
                 self.scaler.unscale_(self.optimizer)
-                if self.model_type != 'enc_dec':
-                    self.scaler.unscale_(self.bert_optimizer)
-
                 nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.clip)
 
                 #Gradient Update & Scaler Update
@@ -120,31 +124,21 @@ class Trainer:
                 self.optimizer.zero_grad()
 
             epoch_loss += loss.item()
-        
-        epoch_loss = round(epoch_loss / tot_len, 3)
-        epoch_ppl = round(math.exp(epoch_loss), 3)    
-        return epoch_loss, epoch_ppl
+            
+        return round(epoch_loss / tot_len, 3)
     
 
 
     def valid_epoch(self):
         self.model.eval()
         epoch_loss = 0
-        tot_len = len(self.valid_dataloader)
         
         with torch.no_grad():
-            for _, batch in enumerate(self.valid_dataloader):   
-
-                input_ids = batch['input_ids'].to(self.device)
-                attention_mask = batch['attention_mask'].to(self.device)
-                labels = batch['labels'].to(self.device)
-                
+            for batch in self.valid_dataloader:   
                 with torch.autocast(device_type=self.device_type, dtype=torch.float16):
-                    loss = self.model(input_ids=input_ids, 
-                                      attention_mask=attention_mask,
-                                      labels=labels).loss
+                    loss = self.model(input_ids=batch['input_ids'].to(self.device), 
+                                      attention_mask=batch['attention_mask'].to(self.device),
+                                      labels=batch['labels'].to(self.device)).loss
                 epoch_loss += loss.item()
-        
-        epoch_loss = round(epoch_loss / tot_len, 3)
-        epoch_ppl = round(math.exp(epoch_loss), 3)        
-        return epoch_loss, epoch_ppl
+                
+        return round(epoch_loss / len(self.valid_dataloader), 3)

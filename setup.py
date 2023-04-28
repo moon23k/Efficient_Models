@@ -6,8 +6,8 @@ from datasets import load_dataset
 def preprocess_data(data_obj):
 	preprocessed = []
 	for elem in data_obj:
-		text = elem['text'].replace('<br /><br />', ' ').lower()
-		preprocessed.append({'text': text, 'label': elem['label']})
+		preprocessed.append({'text': elem['text'].replace('<br />', '').lower(), 
+                             'label': elem['label']})
 	return preprocessed
 
 
@@ -26,7 +26,7 @@ def save_data(data_obj):
 
 def main():
 	orig = load_dataset('imdb')
-	processed = preprocess_data(orig['train']) + preprocess_data(orig['train'])
+	processed = preprocess_data(orig['train']) + preprocess_data(orig['test'])
 	save_data(processed)
 
 
