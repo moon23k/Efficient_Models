@@ -1,5 +1,4 @@
 import os, argparse, torch
-from module.test import Tester
 from module.train import Trainer
 from module.model import load_model
 from module.data import load_dataloader
@@ -8,7 +7,7 @@ from transformers import set_seed, AutoTokenizer
 
 
 class Config(object):
-    def __init__(self, args):
+    def __init__(self, model):
 
         mname_dict = {'bert': 'bert-base-uncased',
                       'albert': "albert-base-v2",
@@ -17,8 +16,7 @@ class Config(object):
                       'longformer': "allenai/longformer-base-4096",
                       'bigbird': "google/bigbird-roberta-base"}
 
-        self.mode = args.mode
-        self.model_type = args.model
+        self.model_type = model
         self.mname = mname_dict[self.model_type]
         self.ckpt = f"ckpt/{self.model_type}.pt"
 
@@ -39,36 +37,25 @@ class Config(object):
 
 
 
-
 def main(args):
     set_seed(42)
     config = Config(args)
     model = load_model(config)
     tokenizer = AutoTokenizer.from_pretrained(config.mname)
 
-
-    if args.mode == 'train':
-        train_dataloader = load_dataloader(config, tokenizer, 'train')
-        valid_dataloader = load_dataloader(config, tokenizer, 'valid')
-        trainer = Trainer(config, model, train_dataloader, valid_dataloader) 
-        trainer.train()
-
-
-    elif args.mode == 'test':
-        test_dataloader = load_dataloader(config, tokenizer, 'test')
-        tester = Tester(config, model, test_dataloader)
-        tester.test()
+    train_dataloader = load_dataloader(config, tokenizer, 'train')
+    valid_dataloader = load_dataloader(config, tokenizer, 'valid')
+    trainer = Trainer(config, model, train_dataloader, valid_dataloader) 
+    trainer.train()
 
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-mode', required=True)
     parser.add_argument('-model', required=True)
 
     args = parser.parse_args()
-    assert args.mode.lower() in ['train', 'test', 'inference']
     assert args.model.lower() in ['bert', 'albert', 'distil_bert', 
                                   'mobile_bert', 'longformer', 'bigbird']
 
-    main(args)
+    main(args.model)

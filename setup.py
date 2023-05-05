@@ -14,8 +14,8 @@ def preprocess_data(data_obj):
 
 def save_data(data_obj):
     #split data into train/valid/test sets
-    train, valid, test = data_obj[:-5000], data_obj[-5000:-2500], data_obj[-2500:]
-    data_dict = {k:v for k, v in zip(['train', 'valid', 'test'], [train, valid, test])}
+    train, valid = data_obj[:-5000], data_obj[-5000:]
+    data_dict = {k:v for k, v in zip(['train', 'valid'], [train, valid])}
 
     for key, val in data_dict.items():
         with open(f'data/{key}.json', 'w') as f:

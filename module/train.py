@@ -28,8 +28,7 @@ class Trainer:
                 
         self.ckpt = config.ckpt
         self.record_path = f"ckpt/{config.model_type}_record.json"
-        self.record_keys = ['epoch', 'train_loss', 'train_ppl','valid_loss', 
-                            'valid_ppl', 'learning_rate', 'train_time']
+        self.record_keys = ['epoch', 'train_loss', ,'valid_acc', 'learning_rate', 'train_time']
         
 
 
@@ -131,14 +130,17 @@ class Trainer:
 
     def valid_epoch(self):
         self.model.eval()
-        epoch_loss = 0
+        epoch_acc, tot_len, corrects = 0, 0, 0
         
         with torch.no_grad():
             for batch in self.valid_dataloader:   
-                with torch.autocast(device_type=self.device_type, dtype=torch.float16):
-                    loss = self.model(input_ids=batch['input_ids'].to(self.device), 
-                                      attention_mask=batch['attention_mask'].to(self.device),
-                                      labels=batch['labels'].to(self.device)).loss
-                epoch_loss += loss.item()
+                logits = self.model(input_ids=batch['input_ids'].to(self.device), 
+                                    attention_mask=batch['attention_mask'].to(self.device),
+                                    labels=batch['labels'].to(self.device)).logits
                 
-        return round(epoch_loss / len(self.valid_dataloader), 3)
+                pred = torch.gt(logits.softmax(), 0.5).int()
+                
+                tot_len += logits.size(0)
+                corrects += (pred == labels).sum().item()
+                
+        return round(corrects/tot_len, 3)

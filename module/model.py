@@ -1,4 +1,4 @@
-import os, torch
+import torch
 import torch.nn as nn
 from collections import namedtuple
 from transformers import AutoModel, AutoConfig
@@ -24,7 +24,7 @@ class Classifier(nn.Module):
         
         logits = self.classifier(last_hiddens)
         loss = self.criterion(logits, labels)
-        
+
         return self.out(logits, loss)
 
 
@@ -58,17 +58,6 @@ def load_model(config):
     if config.mode == 'train':
         model = AutoModel.from_pretrained(config.mname)
         print(f"\nPretrained {config.model_type.upper()} Model has loaded")
-    
-
-    elif config.mode != 'train':
-        assert os.path.exists(config.ckpt)
-        
-        model_config = AutoConfig.from_pretrained(config.mname)
-        model = AutoModel(model_config)
-        
-        model_state = torch.load(config.ckpt, map_location=config.device)['model_state_dict']
-        model.load_state_dict(model_state)
-        print(f"Trained Model states has loaded from {config.ckpt}")
 
     print_model_desc(model)
     return model.to(config.device)
