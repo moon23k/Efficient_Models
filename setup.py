@@ -5,9 +5,14 @@ from datasets import load_dataset
 
 def preprocess_data(data_obj):
 	preprocessed = []
+	
 	for elem in data_obj:
-		preprocessed.append({'text': elem['text'].replace('<br />', '').lower(), 
-                             'label': elem['label']})
+		preprocessed.append({
+			'text': elem['text'].replace('<br />', '').lower(), 
+            'label': elem['label']
+            }
+        )
+
 	return preprocessed
 
 

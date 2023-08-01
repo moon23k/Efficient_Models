@@ -1,10 +1,14 @@
 import torch
 import torch.nn as nn
 from collections import namedtuple
+
 from transformers import AutoModel, AutoConfig
-from pynvml import (nvmlInit, 
-                    nvmlDeviceGetHandleByIndex, 
-                    nvmlDeviceGetMemoryInfo)
+
+from pynvml import (
+    nvmlInit, 
+    nvmlDeviceGetHandleByIndex, 
+    nvmlDeviceGetMemoryInfo
+)
 
 
 
@@ -19,8 +23,10 @@ class Classifier(nn.Module):
 
     def forward(self, input_ids, attention_mask, labels):
         
-        last_hiddens = self.plm(input_ids=input_ids, 
-                                attention_mask=attention_mask).last_hidden_state
+        last_hiddens = self.plm(
+            input_ids=input_ids, 
+            attention_mask=attention_mask
+        ).last_hidden_state
         
         logits = self.classifier(last_hiddens)
         loss = self.criterion(logits, labels)

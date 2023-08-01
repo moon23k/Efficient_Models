@@ -9,12 +9,12 @@ from transformers import set_seed, AutoTokenizer
 class Config(object):
     def __init__(self, model):
 
-        mname_dict = {'bert': 'bert-base-uncased',
-                      'albert': "albert-base-v2",
-                      'distil_bert': "distilbert-base-uncased", 
-                      'mobile_bert': "google/mobilebert-uncased",
-                      'longformer': "allenai/longformer-base-4096",
-                      'bigbird': "google/bigbird-roberta-base"}
+        mname_dict = {
+            'bert': 'bert-base-uncased',
+            'albert': "albert-base-v2",
+            'distil_bert': "distilbert-base-uncased", 
+            'mobile_bert': "google/mobilebert-uncased"
+        }
 
         self.model_type = model
         self.mname = mname_dict[self.model_type]
@@ -55,7 +55,6 @@ if __name__ == '__main__':
     parser.add_argument('-model', required=True)
 
     args = parser.parse_args()
-    assert args.model.lower() in ['bert', 'albert', 'distil_bert', 
-                                  'mobile_bert', 'longformer', 'bigbird']
+    assert args.model.lower() in ['bert', 'albert', 'distil_bert', 'mobile_bert']
 
     main(args.model)

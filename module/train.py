@@ -70,10 +70,14 @@ class Trainer:
             #save best model
             if best_loss >= val_loss:
                 best_loss = val_loss
-                torch.save({'epoch': epoch,
-                            'model_state_dict': self.model.state_dict(),
-                            'optimizer_state_dict': self.optimizer.state_dict()},
-                            self.ckpt)
+                torch.save(
+                    {
+                    'epoch': epoch,
+                    'model_state_dict': self.model.state_dict(),
+                    'optimizer_state_dict': self.optimizer.state_dict()
+                    }, 
+                    self.ckpt
+                )
 
             #Early Stopping Process
             if self.early_stop:
@@ -103,9 +107,11 @@ class Trainer:
         for idx, batch in enumerate(self.train_dataloader):
 
             with torch.autocast(device_type=self.device_type, dtype=torch.float16):
-                loss = self.model(input_ids=batch['input_ids'].to(self.device), 
-                                  attention_mask=batch['attention_mask'].to(self.device),
-                                  labels=batch['labels'].to(self.device)).loss
+                loss = self.model(
+                    input_ids=batch['input_ids'].to(self.device), 
+                    attention_mask=batch['attention_mask'].to(self.device),
+                    labels=batch['labels'].to(self.device)
+                    ).loss
 
                 loss = loss / self.iters_to_accumulate
             
@@ -134,9 +140,11 @@ class Trainer:
         
         with torch.no_grad():
             for batch in self.valid_dataloader:   
-                logits = self.model(input_ids=batch['input_ids'].to(self.device), 
-                                    attention_mask=batch['attention_mask'].to(self.device),
-                                    labels=batch['labels'].to(self.device)).logits
+                logits = self.model(
+                    input_ids=batch['input_ids'].to(self.device), 
+                    attention_mask=batch['attention_mask'].to(self.device),
+                    labels=batch['labels'].to(self.device)
+                    ).logits
                 
                 pred = torch.gt(logits.softmax(), 0.5).int()
                 
