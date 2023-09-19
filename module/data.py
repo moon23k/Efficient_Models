@@ -1,18 +1,18 @@
 import json, torch
-from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 
 
 
+
 class Dataset(torch.utils.data.Dataset):
-    def __init__(self, split):
+    def __init__(self, task, split):
         super().__init__()
-        self.data = self.load_data(split)
+        self.data = self.load_data(task, split)
 
     @staticmethod
-    def load_data(split):
-        with open(f"data/{split}.json", 'r') as f:
+    def load_data(task, split):
+        with open(f"data/{task}/{split}.json", 'r') as f:
             data = json.load(f)
         return data
 
@@ -20,34 +20,38 @@ class Dataset(torch.utils.data.Dataset):
         return len(self.data)
     
     def __getitem__(self, idx):
-        return self.data[idx]['text'], self.data[idx]['label']
+        return self.data[idx]['x'], self.data[idx]['y']
+
 
 
 class Collator:
     def __init__(self, tokenizer):
         self.tokenizer = tokenizer
-        self.max_len = tokenizer.model_max_length
 
     def __call__(self, batch):
-        text_batch, label_batch = zip(*batch)
-        text_encodings = self.tokenzier(text_batch, 
-                                        max_length=self.max_len,
-                                        padding='max_length', 
-                                        truncation=True,
-                                        return_tensors='pt')
+        x_batch, y_batch = zip(*batch)
+        x_encodings = self.tokenzier(
+            x_batch, 
+            padding=True, 
+            truncation=True,
+            return_tensors='pt'
+        )
 
-        return {'input_ids': text_encodings.input_ids, 
-                'attention_mask': text_encodings.attention_mask,
-                'labels': torch.Tensor(label_batch)}
+        return {'input_ids': x_encodings.input_ids, 
+                'attention_mask': x_encodings.attention_mask,
+                'labels': torch.Tensor(y_batch)}
+
 
 
 def load_dataloader(config, tokenizer, split):
-    is_train = True if split == 'train' else False
-    
+    is_train = split == 'train'
+    batch_size = config.batch_size if is_train else 1
+
     return DataLoader(
-        Dataset(split), 
-        batch_size=config.batch_size if is_train else 1, 
-        shuffle=True if is_train else False,
+        Dataset(config.task, split), 
+        batch_size=batch_size, 
+        shuffle=is_train,
         collate_fn=Collator(tokenizer),
-        num_workers=2, pin_memory=True
-    )       
+        num_workers=2, 
+        pin_memory=True
+    )

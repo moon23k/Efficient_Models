@@ -1,154 +1,45 @@
-import time, json, torch
-import torch.nn as nn
-import torch.amp as amp
-import torch.optim as optim
+from module import load_dataloader
+from transformers import TrainingArguments, Trainer
 
 
 
-class Trainer:
-    def __init__(self, config, model, train_dataloader, valid_dataloader):
-        super(Trainer, self).__init__()
-        
-        self.model = model
-        self.clip = config.clip
-        self.device = config.device
-        self.n_epochs = config.n_epochs
+def set_training_args(config):
 
-        self.scaler = torch.cuda.amp.GradScaler()
-        self.iters_to_accumulate = config.iters_to_accumulate        
+    train_kwargs = {
+        'output_dir': config.ckpt,
+        'logging_dir': f'{config.ckpt}/logging',
 
-        self.train_dataloader = train_dataloader
-        self.valid_dataloader = valid_dataloader
+        'learning_rate': config.lr,
+        'num_train_epochs': config.n_epochs,
+        'use_cpu': config.device.type == 'cpu',
+        'per_device_eval_batch_size': config.batch_size,
+        'per_device_train_batch_size': config.batch_size,
+        'gradient_accumulation_steps': config.gradient_accumulation_steps,
 
-        self.optimizer = optim.AdamW(params=self.model.parameters(), lr=config.lr)
-        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min')
+        'fp16': True,
+        'fp16_opt_level': '02',
 
-        self.early_stop = config.early_stop
-        self.patience = config.patience
-                
-        self.ckpt = config.ckpt
-        self.record_path = f"ckpt/{config.model_type}_record.json"
-        self.record_keys = ['epoch', 'train_loss', ,'valid_acc', 'learning_rate', 'train_time']
-        
+        'logging_first_step': True,
+        'logging_strategy': 'epoch',
+        'save_strategy': 'epoch',
+        'evaluation_strategy': 'epoch',
+    }
 
-
-    def print_epoch(self, record_dict):
-        print(f"""Epoch {record_dict['epoch']}/{self.n_epochs} | \
-              Time: {record_dict['train_time']}""".replace(' ' * 14, ''))
-        
-        print(f"""  >> Train Loss: {record_dict['train_loss']:.3f} | \
-              Valid Loss: {record_dict['valid_loss']:.3f}""".replace(' ' * 14, ''))
+    return TrainingArguments(**train_kwargs)
 
 
 
+def load_trainer(config, model, tokenizer):
+    training_args = set_training_args(config)
 
-    @staticmethod
-    def measure_time(start_time, end_time):
-        elapsed_time = end_time - start_time
-        elapsed_min = int(elapsed_time / 60)
-        elapsed_sec = int(elapsed_time - (elapsed_min * 60))
-        return f"{elapsed_min}m {elapsed_sec}s"
+    train_dataloader = load_dataloader(config, tokenizer, 'train')
+    valid_dataloader = load_dataloader(config, tokenizer, 'valid')
 
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataloader,
+        eval_dataset=valid_dataloader
+    )
 
-
-    def train(self):
-        best_loss, records = float('inf'), []
-        for epoch in range(1, self.n_epochs + 1):
-            start_time = time.time()
-
-            record_vals = [epoch, self.train_epoch(), self.valid_epoch(), 
-                           self.optimizer.param_groups[0]['lr'],
-                           self.measure_time(start_time, time.time())]
-            record_dict = {k: v for k, v in zip(self.record_keys, record_vals)}
-            
-            records.append(record_dict)
-            self.print_epoch(record_dict)
-            
-            val_loss = record_dict['valid_loss']
-            self.scheduler.step(val_loss)
-
-            #save best model
-            if best_loss >= val_loss:
-                best_loss = val_loss
-                torch.save(
-                    {
-                    'epoch': epoch,
-                    'model_state_dict': self.model.state_dict(),
-                    'optimizer_state_dict': self.optimizer.state_dict()
-                    }, 
-                    self.ckpt
-                )
-
-            #Early Stopping Process
-            if self.early_stop:
-                if prev_loss > val_loss:
-                    patience = self.patience
-            
-                else:
-                    patience -= 1
-                    if not patience:
-                        print('--- Training Ealry Stopped ---\n')
-                        break
-
-                prev_loss = val_loss
-            
-        #save train_records
-        with open(self.record_path, 'w') as fp:
-            json.dump(records, fp)
-
-
-
-
-    def train_epoch(self):
-        self.model.train()
-        epoch_loss = 0
-        tot_len = len(self.train_dataloader)
-
-        for idx, batch in enumerate(self.train_dataloader):
-
-            with torch.autocast(device_type=self.device_type, dtype=torch.float16):
-                loss = self.model(
-                    input_ids=batch['input_ids'].to(self.device), 
-                    attention_mask=batch['attention_mask'].to(self.device),
-                    labels=batch['labels'].to(self.device)
-                    ).loss
-
-                loss = loss / self.iters_to_accumulate
-            
-            #Backward Loss
-            self.scaler.scale(loss).backward()        
-            
-            if (idx % self.iters_to_accumulate == 0) or (idx == tot_len):
-                #Gradient Clipping
-                self.scaler.unscale_(self.optimizer)
-                nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.clip)
-
-                #Gradient Update & Scaler Update
-                self.scaler.step(self.optimizer)                
-                self.scaler.update()
-                self.optimizer.zero_grad()
-
-            epoch_loss += loss.item()
-            
-        return round(epoch_loss / tot_len, 3)
-    
-
-
-    def valid_epoch(self):
-        self.model.eval()
-        epoch_acc, tot_len, corrects = 0, 0, 0
-        
-        with torch.no_grad():
-            for batch in self.valid_dataloader:   
-                logits = self.model(
-                    input_ids=batch['input_ids'].to(self.device), 
-                    attention_mask=batch['attention_mask'].to(self.device),
-                    labels=batch['labels'].to(self.device)
-                    ).logits
-                
-                pred = torch.gt(logits.softmax(), 0.5).int()
-                
-                tot_len += logits.size(0)
-                corrects += (pred == labels).sum().item()
-                
-        return round(corrects/tot_len, 3)
+    return trainer
