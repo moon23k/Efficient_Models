@@ -30,7 +30,7 @@ class Collator:
 
     def __call__(self, batch):
         x_batch, y_batch = zip(*batch)
-        x_encodings = self.tokenzier(
+        x_encodings = self.tokenizer(
             x_batch, 
             padding=True, 
             truncation=True,
@@ -44,13 +44,11 @@ class Collator:
 
 
 def load_dataloader(config, tokenizer, split):
-    is_train = split == 'train'
-    batch_size = config.batch_size if is_train else 1
 
     return DataLoader(
         Dataset(config.task, split), 
-        batch_size=batch_size, 
-        shuffle=is_train,
+        batch_size=config.batch_size, 
+        shuffle=True,
         collate_fn=Collator(tokenizer),
         num_workers=2, 
         pin_memory=True

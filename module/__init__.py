@@ -1,4 +1,4 @@
-from .model import load_model
 from .data import load_dataloader
-from .train import load_trainer
+from .model import load_model
+from .train import Trainer
 from .test import Tester

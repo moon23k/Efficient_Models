@@ -3,15 +3,13 @@ import torch
 
 
 class Tester:
-    def __init__(self, config, model, tokenizer, test_dataloader):
+    def __init__(self, config, model, test_dataloader):
         super(Tester, self).__init__()
         
         self.model = model
-        self.tokenizer = tokenizer
         self.dataloader = test_dataloader
 
         self.task = config.task
-        self.bos_id = config.bos_id
         self.device = config.device
         self.model_type = config.model_type
         
@@ -23,12 +21,18 @@ class Tester:
 
         with torch.no_grad():
             for batch in self.dataloader:
-                x = batch['x'].to(self.device)
-                y = batch['y']
+                input_ids = batch['input_ids'].to(self.device)
+                attention_mask = batch['attention_mask'].to(self.device)
+                labels = batch['labels']
 
-                pred = self.model(x)
-                score += self.evaluate(pred, y)
+                preds = self.model(
+                    input_ids=input_ids, 
+                    attention_mask=attention_mask
+                ).logits..argmax(dim=-1)
+
+                acc = (preds == labels).sum().item()
+                score += acc
 
         txt = f"TEST Result on {self.task.upper()} with {self.model_type.upper()} model"
-        txt += f"\n-- Score: {round(score/len(self.dataloader), 2)}\n"
+        txt += f"\n-- Acc Score: {round(score/len(self.dataloader), 2)}\n"
         print(txt)
