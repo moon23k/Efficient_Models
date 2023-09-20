@@ -1,4 +1,4 @@
-import os, json, argparse
+import os, re, json, argparse
 from datasets import load_dataset
 
 
@@ -6,8 +6,8 @@ from datasets import load_dataset
 
 def fetch_imdb(orig_data):
     fetched = []
-    tot_volumn = 34000
-    class_volumn = 34000 // 2
+    tot_volumn = 12000
+    class_volumn = 12000 // 2
     neg_cnt, pos_cnt = 0, 0
     neg_data, pos_data = [], []
 
@@ -39,8 +39,8 @@ def fetch_imdb(orig_data):
 
 def fetch_agnews(orig_data):
     fetched = []
-    tot_volumn = 34000
-    class_volumn = 34000 // 4
+    tot_volumn = 12000
+    class_volumn = 12000 // 4
     class1_cnt, class2_cnt, class3_cnt, class4_cnt = 0, 0, 0, 0
     class1_data, class2_data, class3_data, class4_data = [], [], [], []
 
@@ -50,7 +50,10 @@ def fetch_agnews(orig_data):
         if curr_volumn == tot_volumn:
             break
 
-        text = elem['text'].replace('\\', '').lower()
+        text = elem['text'].lower()
+        text = re.sub(r'\\+', ' ', text)
+        text = re.sub(r'\s{2,}', ' ', text)
+        text = re.sub(r'&lt;b&gt;', ' ', text)
         label = elem['label']
 
         if label == 0 and class1_cnt < class_volumn:
@@ -82,7 +85,7 @@ def fetch_agnews(orig_data):
 
 def save_data(task, data_obj):
     #split data into train/valid/test sets
-    train, valid, test = data_obj[:-4000], data_obj[-4000:-1000], data_obj[-1000:]
+    train, valid, test = data_obj[:-2000], data_obj[-2000:-1000], data_obj[-1000:]
     data_dict = {k:v for k, v in zip(['train', 'valid', 'test'], [train, valid, test])}
 
     for key, val in data_dict.items():

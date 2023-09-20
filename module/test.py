@@ -28,7 +28,7 @@ class Tester:
                 preds = self.model(
                     input_ids=input_ids, 
                     attention_mask=attention_mask
-                ).logits..argmax(dim=-1)
+                ).logits.argmax(dim=-1)
 
                 acc = (preds == labels).sum().item()
                 score += acc

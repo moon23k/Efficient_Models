@@ -17,7 +17,6 @@ class Config(object):
             'albert': "albert-base-v2",
             'distil_bert': "distilbert-base-uncased", 
             'mobile_bert': "google/mobilebert-uncased",
-            'reformer': "google/reformer-enwik8",
             'longformer': "allenai/longformer-base-4096",
             'bigbird': "google/bigbird-roberta-base"
         }
@@ -29,7 +28,7 @@ class Config(object):
 
         self.lr = 5e-5
         self.n_epochs = 10
-        self.batch_size = 128
+        self.batch_size = 4
         self.iters_to_accumulate = 4
         self.clip = 1
         self.early_stop = True
@@ -59,7 +58,10 @@ def main(args):
     set_seed(42)
     config = Config(args)
     model = load_model(config)
-    tokenizer = AutoTokenizer.from_pretrained(config.mname)
+    tokenizer = AutoTokenizer.from_pretrained(
+        config.mname, model_max_length=config.max_len
+    )
+    
     torch.cuda.empty_cache()
 
     if config.mode == 'train':
@@ -85,8 +87,8 @@ if __name__ == '__main__':
     assert args.task.lower() in ['imdb', 'ag_news']
     assert args.mode.lower() in ['train', 'test']
     assert args.model.lower() in [
-        'bert', 'albert', 'distil_bert', 'mobile_bert', 
-        'reformer', 'longformer', 'bigbird'
+        'bert', 'albert', 'distil_bert', 
+        'mobile_bert', 'longformer', 'bigbird'
     ]
 
     os.makedirs(f'ckpt/{args.task}/{args.model}', exist_ok=True)

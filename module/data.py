@@ -28,6 +28,7 @@ class Collator:
     def __init__(self, tokenizer):
         self.tokenizer = tokenizer
 
+
     def __call__(self, batch):
         x_batch, y_batch = zip(*batch)
         x_encodings = self.tokenizer(
@@ -36,11 +37,11 @@ class Collator:
             truncation=True,
             return_tensors='pt'
         )
-
-        return {'input_ids': x_encodings.input_ids, 
+        
+        return {'input_ids': x_encodings.input_ids,
                 'attention_mask': x_encodings.attention_mask,
-                'labels': torch.Tensor(y_batch)}
-
+                'labels': torch.LongTensor(y_batch)}
+        
 
 
 def load_dataloader(config, tokenizer, split):

@@ -28,13 +28,16 @@ class Trainer:
 
         self.ckpt = config.ckpt
         self.record_path = self.ckpt.replace('model.pt', 'train_record.json')
-        self.record_keys = ['epoch', 'train_loss', 'valid_loss', 
-                            'learning_rate', 'train_time']
+        self.record_keys = ['epoch', 'train_loss', 'valid_loss', 'learning_rate', 
+                            'train_time', 'gpu_memory_occupation']
 
 
     def print_epoch(self, record_dict):
+
         print(f"""Epoch {record_dict['epoch']}/{self.n_epochs} | \
-              Time: {record_dict['train_time']}""".replace(' ' * 14, ''))
+              Time: {record_dict['train_time']} | \
+              GPU Memory Occupation: {record_dict['gpu_memory_occupation']}GB\
+              """.replace(' ' * 14, ''))
         
         print(f"  >> Train Loss: {record_dict['train_loss']:.3f}")
         print(f"  >> Valid Loss: {record_dict['valid_loss']:.3f}\n")
@@ -47,6 +50,11 @@ class Trainer:
         elapsed_sec = int(elapsed_time - (elapsed_min * 60))
         return f"{elapsed_min}m {elapsed_sec}s"
 
+    @staticmethod
+    def memory_check():
+        m = torch.cuda.mem_get_info()
+        return round((m[1]-m[0]) / (1024 ** 3), 2)
+
 
     def train(self):
         records = []
@@ -58,7 +66,8 @@ class Trainer:
 
             record_vals = [epoch, self.train_epoch(), self.valid_epoch(), 
                            self.optimizer.param_groups[0]['lr'],
-                           self.measure_time(start_time, time.time())]
+                           self.measure_time(start_time, time.time()),
+                           self.memory_check()]
             record_dict = {k: v for k, v in zip(self.record_keys, record_vals)}
             
             records.append(record_dict)
@@ -88,7 +97,6 @@ class Trainer:
 
                 prev_loss = val_loss
 
-            
         #save train_records
         with open(self.record_path, 'w') as fp:
             json.dump(records, fp)
