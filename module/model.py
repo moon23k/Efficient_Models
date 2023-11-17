@@ -5,10 +5,9 @@ from transformers import AutoModelForSequenceClassification
 
 
 
-def print_model_desc(model):
+def get_model_desc(model):
     #Number of trainerable parameters
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"--- Model Params: {n_params:,}")
 
     #Model size check
     param_size, buffer_size = 0, 0
@@ -20,7 +19,9 @@ def print_model_desc(model):
         buffer_size += buffer.nelement() * buffer.element_size()
 
     size_all_mb = (param_size + buffer_size) / 1024**2
-    print(f"--- Model  Size : {size_all_mb:.3f} MB")
+
+    return f"{n_params:,}", f"{size_all_mb:.3f} MB"
+    
 
 
 
@@ -44,8 +45,7 @@ def load_model(config):
         model.bert.embeddings.position_ids = torch.arange(max_len).expand((1, -1))
         model.bert.embeddings.token_type_ids = torch.zeros(max_len, dtype=torch.long).expand((1, -1))
 
-    
-    model.config.use_cache = False  #For Gradient Checkpointing
-    print_model_desc(model)
+    if config.task == 'imdb':
+        model.config.use_cache = False  #For Gradient Checkpointing
 
     return model.to(config.device)

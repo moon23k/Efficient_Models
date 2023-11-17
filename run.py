@@ -1,4 +1,4 @@
-import argparse, torch
+import json, argparse, torch
 from transformers import set_seed, AutoTokenizer
 from module import (
     load_model, 
@@ -71,22 +71,28 @@ def main(strategy):
     valid_dataset = load_dataset(tokenizer, 'valid')
     test_dataset = load_dataset(tokenizer, 'test')
 
+
     #Load Trainer
     trainer = set_trainer(config, model, tokenizer, train_dataset, valid_dataset)    
     
+
     #Training
     torch.cuda.reset_max_memory_allocated()
     train_output = trainer.train()
     gpu_memory = torch.cuda.max_memory_allocated()
     
+
     #Evaluating
     eval_output = trainer.evaluate(test_dataset)
+
     
     #Save Training and Evaluation Rst Report
     report = {**train_output.metrics, **eval_output}
     report['gpu_memory'] = f"{gpu_memory / (1024 ** 3):.2f} GB"
+    report['model_params'], report['model_size'] = get_model_desc(model)
 
-    with open(f"report/{strategy}.json", 'w') as f:
+    os.makedirs(f"report/{config.task}", exist_ok=True)
+    with open(f"report/{config.task}/{config.model_type}.json", 'w') as f:
         json.dump(report, f)
 
 

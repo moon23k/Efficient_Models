@@ -19,8 +19,8 @@ class Dataset(torch.utils.data.Dataset):
 
 
 
-def load_dataset(tokenizer, split):
-    dataset = datasets.Dataset.from_json(f'data/{split}.json')    
+def load_dataset(tokenizer, task, split):
+    dataset = datasets.Dataset.from_json(f'data/{task}/{split}.json')    
     encodings = tokenizer(dataset['x'], padding=True, truncation=True, return_tensors='pt')    
     dataset = Dataset(encodings, dataset['y'])
     return dataset

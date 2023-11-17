@@ -26,10 +26,10 @@ def set_trainer(config, model, tokenizer, train_dataset, valid_dataset):
         logging_strategy= 'epoch',
         evaluation_strategy= 'epoch',
 
-        fp16= True,
-        fp16_opt_level= '02',
+        fp16= config.task == 'imdb',
+        fp16_opt_level= '02' if config.task == 'imdb' else '01',
         gradient_accumulation_steps = 4,
-        gradient_checkpointing= True,
+        gradient_checkpointing = config.task == 'imdb',
         optim = 'adafactor'
     )
 

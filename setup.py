@@ -1,4 +1,4 @@
-import os, re, json, argparse
+import os, re, json, random, argparse
 from datasets import load_dataset
 
 
@@ -6,6 +6,7 @@ from datasets import load_dataset
 
 def fetch_imdb(orig_data):
     fetched = []
+    max_len = 1000
     tot_volumn = 1200
     class_volumn = 1200 // 2
     neg_cnt, pos_cnt = 0, 0
@@ -19,6 +20,8 @@ def fetch_imdb(orig_data):
         if neg_cnt + pos_cnt == tot_volumn:
             break
         text = elem['text'].replace('<br />', '').lower()
+        if len(text) > max_len:
+            continue
         label = elem['label']
 
         if label == 0 and pos_cnt < class_volumn:
@@ -39,6 +42,7 @@ def fetch_imdb(orig_data):
 
 def fetch_agnews(orig_data):
     fetched = []
+    max_len = 300
     tot_volumn = 1200
     class_volumn = 1200 // 4
     class1_cnt, class2_cnt, class3_cnt, class4_cnt = 0, 0, 0, 0
@@ -51,6 +55,9 @@ def fetch_agnews(orig_data):
             break
 
         text = elem['text'].lower()
+        if len(text) > max_len:
+            continue
+            
         text = re.sub(r'\\+', ' ', text)
         text = re.sub(r'\s{2,}', ' ', text)
         text = re.sub(r'&lt;b&gt;', ' ', text)
